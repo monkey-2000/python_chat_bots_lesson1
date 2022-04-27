@@ -9,7 +9,6 @@ BOT_TOKEN = getenv('BOT_TOKEN')
 BOT_CHAT_ID = getenv('BOT_CHAT_ID')
 DVMN_TOKEN = getenv('DVMN_TOKEN')
 
-
 def send_message_to_bot(token, chat_id, message):
     """Send message to telegram bot"""
     bot = telegram.Bot(token=token)
@@ -53,7 +52,6 @@ def generate_message(response):
 
 
 def main():
-
     dvmn_headers = {'Authorization': DVMN_TOKEN}
     url = 'https://dvmn.org/api/long_polling/'
     url_with_timestamp = 'https://dvmn.org/api/long_polling/?timestamp={}'
