@@ -1,19 +1,12 @@
+from time import sleep
 import requests
-import telegram
 from os import getenv
+
+import telegram
 from dotenv import load_dotenv
 
-load_dotenv()
-
-BOT_TOKEN = getenv('BOT_TOKEN')
-BOT_CHAT_ID = getenv('BOT_USER_ID')
-DVMN_TOKEN = getenv('DVMN_TOKEN')
-
-
-def send_message_to_bot(token, chat_id, message):
-    """Send message to telegram bot"""
-    bot = telegram.Bot(token=token)
-    bot.send_message(chat_id=chat_id, text=message)
+FAIL_ATTEMPTS_COUNT = 10
+SLEEP_TIME = 60 * 2
 
 
 def find_out_timestamp_for_new_request(response):
@@ -27,14 +20,14 @@ def find_out_timestamp_for_new_request(response):
         return ''
 
 
-def generate_message(response):
+def generate_message(response_messages):
     """Generate message from response for telegram bot"""
-    response_messages = response.json()
+
     if response_messages['status'] == "found":
-        new_message = 'У вам проверили работу "{title}"\nURL:{URL}\n\n{result}'
-        attemp_list = response_messages['new_attempts']
-        new_message_list = []
-        for attemp in attemp_list:
+        new_message = 'У Вас проверили работу "{title}"\nURL:{URL}\n\n{result}'
+        attemps = response_messages['new_attempts']
+        new_messages = []
+        for attemp in attemps:
             lesson_url = attemp['lesson_url']
 
             if attemp['is_negative']:
@@ -43,43 +36,64 @@ def generate_message(response):
                 job_review_result = 'Преподавателю все понравилось,' \
                                     'можно приступать к следующему уроку!'
 
-            new_message_list.append(new_message.format(
+            new_messages.append(new_message.format(
                 title=attemp['lesson_title'],
                 URL=lesson_url,
                 result=job_review_result))
-        return new_message_list
+        return new_messages
     elif response_messages['status'] == "timeout":
         pass
 
 
 def main():
-    dvmn_headers = {'Authorization': DVMN_TOKEN}
+
+    load_dotenv()
+    bot_token = getenv('BOT_TOKEN')
+    bot_chat_id = getenv('BOT_USER_ID')
+    dvmn_token = getenv('DVMN_TOKEN')
+
+    bot = telegram.Bot(token=bot_token)
+
+    dvmn_headers = {'Authorization': dvmn_token}
     url = 'https://dvmn.org/api/long_polling/'
-    url_with_timestamp = 'https://dvmn.org/api/long_polling/?timestamp={}'
+
+    params = {}
 
     timeout = 60
-    timestamp = None
+    fail_count = 0
 
     while True:
         try:
-            if timestamp:
-                response = requests.get(url_with_timestamp.format(timestamp), headers=dvmn_headers, timeout=timeout)
-                response.raise_for_status()
-                timestamp = None
-            else:
-                response = requests.get(url, headers=dvmn_headers, timeout=timeout)
-                response.raise_for_status()
+            response = requests.get(
+                url=url,
+                headers=dvmn_headers,
+                params=params,
+                timeout = timeout)
+            response.raise_for_status()
+
         except requests.exceptions.ReadTimeout:
             pass
+
         except requests.exceptions.ConnectionError:
-            pass
+            fail_count += 1
+            if fail_count >= FAIL_ATTEMPTS_COUNT:
+                sleep(SLEEP_TIME)
+
         except requests.exceptions.HTTPError:
             pass
         else:
-            timestamp = find_out_timestamp_for_new_request(response)
-            new_messages = generate_message(response)
+
+            messages = response.json()
+
+            if messages['status'] == "found":
+                params["timestamp"] = messages['last_attempt_timestamp']
+            elif messages['status'] == "timeout":
+                params["timestamp"] = messages["timestamp_to_request"]
+
+            new_messages = generate_message(messages)
+
             for message in new_messages:
-                send_message_to_bot(BOT_TOKEN, BOT_CHAT_ID, message)
+                bot.send_message(chat_id=bot_chat_id, text=message)
 
 
 if __name__ == '__main__':
