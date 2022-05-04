@@ -23,26 +23,23 @@ def find_out_timestamp_for_new_request(response):
 def generate_message(response_messages):
     """Generate message from response for telegram bot"""
 
-    if response_messages['status'] == "found":
-        new_message = 'У Вас проверили работу "{title}"\nURL:{URL}\n\n{result}'
-        attemps = response_messages['new_attempts']
-        new_messages = []
-        for attemp in attemps:
-            lesson_url = attemp['lesson_url']
+    new_message = 'У Вас проверили работу "{title}"\nURL:{URL}\n\n{result}'
+    attemps = response_messages['new_attempts']
+    new_messages = []
+    for attemp in attemps:
+        lesson_url = attemp['lesson_url']
 
-            if attemp['is_negative']:
-                job_review_result = 'К сожалению, в работе нашлись ошибки.'
-            else:
-                job_review_result = 'Преподавателю все понравилось,' \
-                                    'можно приступать к следующему уроку!'
+        if attemp['is_negative']:
+            job_review_result = 'К сожалению, в работе нашлись ошибки.'
+        else:
+            job_review_result = 'Преподавателю все понравилось,' \
+                                'можно приступать к следующему уроку!'
 
-            new_messages.append(new_message.format(
-                title=attemp['lesson_title'],
-                URL=lesson_url,
-                result=job_review_result))
-        return new_messages
-    elif response_messages['status'] == "timeout":
-        pass
+        new_messages.append(new_message.format(
+            title=attemp['lesson_title'],
+            URL=lesson_url,
+            result=job_review_result))
+    return new_messages
 
 
 def main():
@@ -81,14 +78,14 @@ def main():
 
         except requests.exceptions.HTTPError:
             pass
-        else:
 
-            messages = response.json()
+        messages = response.json()
 
-            if messages['status'] == "found":
-                params["timestamp"] = messages['last_attempt_timestamp']
-            elif messages['status'] == "timeout":
-                params["timestamp"] = messages["timestamp_to_request"]
+        if messages['status'] == "timeout":
+            params["timestamp"] = messages["timestamp_to_request"]
+
+        elif messages['status'] == "found":
+            params["timestamp"] = messages['last_attempt_timestamp']
 
             new_messages = generate_message(messages)
 
