@@ -1,7 +1,7 @@
 from time import sleep
-import requests
 from os import getenv
 
+import requests
 import telegram
 from dotenv import load_dotenv
 
@@ -21,7 +21,7 @@ def find_out_timestamp_for_new_request(response):
 
 
 def generate_message(response_messages):
-    """Generate message from response for telegram bot"""
+    """Generate message from response for telegram bot."""
 
     new_message = 'У Вас проверили работу "{title}"\nURL:{URL}\n\n{result}'
     attemps = response_messages['new_attempts']
