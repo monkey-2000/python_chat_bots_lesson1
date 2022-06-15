@@ -1,6 +1,5 @@
 import logging
 
-
 LOG_LEVEL = 'INFO'
 _log_format = f"%(asctime)s - [%(levelname)s] - %(message)s"
 
@@ -22,6 +21,7 @@ def get_file_handler(log_level=LOG_LEVEL):
     file_handler.setLevel(log_level)
     file_handler.setFormatter(logging.Formatter(_log_format))
     return file_handler
+
 
 def get_telegrm_handler(bot, chat_id, log_level=LOG_LEVEL):
     telegrm_handler = TelegramHandler(bot, chat_id)
@@ -45,6 +45,3 @@ def get_logger(name, bot='', chat_id=''):
     if bot and chat_id:
         logger.addHandler(get_telegrm_handler(bot, chat_id))
     return logger
-
-
-
