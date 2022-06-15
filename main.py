@@ -1,16 +1,14 @@
 from time import sleep
-from os import getenv
+import os
 
 import requests
 import telegram
 from dotenv import load_dotenv
-
 from bot_logger import get_logger
 
 
 FAIL_ATTEMPTS_COUNT = 10
 SLEEP_TIME = 60 * 2
-
 
 
 def find_out_timestamp_for_new_request(response):
@@ -49,12 +47,13 @@ def generate_message(response_messages):
 def main():
 
     load_dotenv()
-    bot_token = getenv('BOT_TOKEN')
-    bot_chat_id = getenv('BOT_USER_ID')
-    dvmn_token = getenv('DVMN_TOKEN')
+    bot_token = os.environ['BOT_TOKEN']
+    bot_chat_id = os.environ['BOT_USER_ID']
+    bot_log_chat_id = os.environ['BOT_LOG_CHAT_ID']
+    dvmn_token = os.environ['DVMN_TOKEN']
 
     bot = telegram.Bot(token=bot_token)
-    logger = get_logger('dvmn_bot_logger', bot=bot, chat_id=bot_chat_id)
+    logger = get_logger('dvmn_bot_logger', bot=bot, chat_id=bot_log_chat_id)
     dvmn_headers = {'Authorization': dvmn_token}
     url = 'https://dvmn.org/api/long_polling/'
 
@@ -80,21 +79,23 @@ def main():
             if fail_count >= FAIL_ATTEMPTS_COUNT:
                 sleep(SLEEP_TIME)
 
-        except requests.exceptions.HTTPError:
-            pass
+        except requests.exceptions.HTTPError as err:
+            logger.error('Бот упал с ошибкой:')
+            logger.error(err, exc_info=True)
 
-        messages = response.json()
+        else:
+            messages = response.json()
 
-        if messages['status'] == "timeout":
-            params["timestamp"] = messages["timestamp_to_request"]
+            if messages['status'] == "timeout":
+                params["timestamp"] = messages["timestamp_to_request"]
 
-        elif messages['status'] == "found":
-            params["timestamp"] = messages['last_attempt_timestamp']
+            elif messages['status'] == "found":
+                params["timestamp"] = messages['last_attempt_timestamp']
 
-            new_messages = generate_message(messages)
+                new_messages = generate_message(messages)
 
-            for message in new_messages:
-                bot.send_message(chat_id=bot_chat_id, text=message)
+                for message in new_messages:
+                    bot.send_message(chat_id=bot_chat_id, text=message)
 
 
 if __name__ == '__main__':
