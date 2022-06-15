@@ -5,8 +5,12 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
+from bot_logger import get_logger
+
+
 FAIL_ATTEMPTS_COUNT = 10
 SLEEP_TIME = 60 * 2
+
 
 
 def find_out_timestamp_for_new_request(response):
@@ -50,16 +54,17 @@ def main():
     dvmn_token = getenv('DVMN_TOKEN')
 
     bot = telegram.Bot(token=bot_token)
-
+    logger = get_logger('dvmn_bot_logger', bot=bot, chat_id=bot_chat_id)
     dvmn_headers = {'Authorization': dvmn_token}
     url = 'https://dvmn.org/api/long_polling/'
 
     params = {}
-
     timeout = 60
     fail_count = 0
 
+    logger.info("Бот запущен.")
     while True:
+
         try:
             response = requests.get(
                 url=url,
@@ -70,7 +75,6 @@ def main():
 
         except requests.exceptions.ReadTimeout:
             pass
-
         except requests.exceptions.ConnectionError:
             fail_count += 1
             if fail_count >= FAIL_ATTEMPTS_COUNT:
