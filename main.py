@@ -1,25 +1,18 @@
 from time import sleep
 import os
+import logging
 
 import requests
 import telegram
 from dotenv import load_dotenv
-from bot_logger import get_logger
+
+from telegram_handler import TelegramHandler
 
 
 FAIL_ATTEMPTS_COUNT = 10
 SLEEP_TIME = 60 * 2
 
-
-def find_out_timestamp_for_new_request(response):
-    """Find out the timestamp for a new request, given the status value of the response."""
-    messages = response.json()
-    if messages['status'] == "found":
-        return messages['last_attempt_timestamp']
-    elif messages['status'] == "timeout":
-        return messages["timestamp_to_request"]
-    else:
-        return ''
+logger = logging.getLogger('chat_bot_logger')
 
 
 def generate_message(response_messages):
@@ -45,7 +38,6 @@ def generate_message(response_messages):
 
 
 def main():
-
     load_dotenv()
     bot_token = os.environ['BOT_TOKEN']
     bot_chat_id = os.environ['BOT_USER_ID']
@@ -53,7 +45,10 @@ def main():
     dvmn_token = os.environ['DVMN_TOKEN']
 
     bot = telegram.Bot(token=bot_token)
-    logger = get_logger('dvmn_bot_logger', bot=bot, chat_id=bot_log_chat_id)
+
+    logger.setLevel('INFO')
+    logger.addHandler(TelegramHandler(bot, bot_log_chat_id))
+
     dvmn_headers = {'Authorization': dvmn_token}
     url = 'https://dvmn.org/api/long_polling/'
 
@@ -62,8 +57,8 @@ def main():
     fail_count = 0
 
     logger.info("Бот запущен.")
-    while True:
 
+    while True:
         try:
             response = requests.get(
                 url=url,
@@ -79,20 +74,19 @@ def main():
             if fail_count >= FAIL_ATTEMPTS_COUNT:
                 sleep(SLEEP_TIME)
 
-        except requests.exceptions.HTTPError as err:
-            logger.error('Бот упал с ошибкой:')
-            logger.error(err, exc_info=True)
+        except requests.exceptions.HTTPError:
+            logger.exception('Бот упал с ошибкой:')
 
         else:
-            messages = response.json()
+            responce_messages = response.json()
 
-            if messages['status'] == "timeout":
-                params["timestamp"] = messages["timestamp_to_request"]
+            if responce_messages['status'] == "timeout":
+                params["timestamp"] = responce_messages["timestamp_to_request"]
 
-            elif messages['status'] == "found":
-                params["timestamp"] = messages['last_attempt_timestamp']
+            elif responce_messages['status'] == "found":
+                params["timestamp"] = responce_messages['last_attempt_timestamp']
 
-                new_messages = generate_message(messages)
+                new_messages = generate_message(responce_messages)
 
                 for message in new_messages:
                     bot.send_message(chat_id=bot_chat_id, text=message)
