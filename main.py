@@ -78,15 +78,15 @@ def main():
             logger.exception('Бот упал с ошибкой:')
 
         else:
-            responce_messages = response.json()
+            review_results = response.json()
 
-            if responce_messages['status'] == "timeout":
-                params["timestamp"] = responce_messages["timestamp_to_request"]
+            if review_results['status'] == "timeout":
+                params["timestamp"] = review_results["timestamp_to_request"]
 
-            elif responce_messages['status'] == "found":
-                params["timestamp"] = responce_messages['last_attempt_timestamp']
+            elif review_results['status'] == "found":
+                params["timestamp"] = review_results['last_attempt_timestamp']
 
-                new_messages = generate_message(responce_messages)
+                new_messages = generate_message(review_results)
 
                 for message in new_messages:
                     bot.send_message(chat_id=bot_chat_id, text=message)
